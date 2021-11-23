@@ -1,13 +1,17 @@
 import React from 'react';
 import './App.scss';
-import { useRxAppStore } from './store';
+import { SunburstChart } from './components/SunburstChart';
+import { useAppStore, useRxAppStore } from './store';
+import { loadRaw } from './store/reducers/loader';
 
 function App() {
-  const { store, store$ } = useRxAppStore();
-  console.log(store, store$);
+  const store = useAppStore();
+  store.dispatch(loadRaw());
+
   return (
     <div className="App">
       <header className="App-header">
+        <SunburstChart />
         <p>
           Edit <code>src/App.tsx</code> and save to reload.
         </p>

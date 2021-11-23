@@ -1,13 +1,16 @@
 import { createReducer, createStore, Store } from '@reduxjs/toolkit';
 import { Context, createContext, FunctionComponent, useContext, useEffect, useMemo } from 'react';
-import { Provider, ReactReduxContextValue } from 'react-redux';
+import { createStoreHook, Provider, ReactReduxContextValue, useStore } from 'react-redux';
 import { Observable, Subject } from 'rxjs';
+import { createTreeRoot, toSerializableCitationTree } from '../models/citation-tree';
 import type { RootState, AppStore } from './constant-lib';
 import { loadRaw, LoadRawAction } from './reducers/loader';
 
 const initialState: RootState = {
   data: {
     raw: [],
+    allGrouped: createTreeRoot(),
+    grouped: createTreeRoot(),
   },
 };
 
@@ -18,13 +21,19 @@ export function createAppStore() {
     createReducer(initialState, (builder) => {
       builder.addCase(loadRaw.type, (state, action: LoadRawAction) => {
         state.data.raw = action.payload;
+        state.data.allGrouped = toSerializableCitationTree(state.data.raw);
+        state.data.grouped = state.data.allGrouped;
       });
     })
   );
 }
 
+export function selectGrouped(state: RootState) {
+  return state.data.grouped;
+}
+
 interface AppStateContextValue extends ReactReduxContextValue<RootState, AppAction> {
-  store$: Observable<RootState>;
+  state$: Observable<RootState>;
 }
 const context = createContext<AppStateContextValue>(null as any);
 
@@ -50,7 +59,7 @@ export const AppProvider: FunctionComponent<{ store: AppStore }> = ({ store, chi
       <context.Provider
         value={{
           store: store as Store<RootState, any>,
-          store$,
+          state$: store$,
           storeState: store.getState(),
         }}
       >
@@ -60,9 +69,10 @@ export const AppProvider: FunctionComponent<{ store: AppStore }> = ({ store, chi
   );
 };
 
+export const useAppStore = createStoreHook(context as any);
+
 export function useRxAppStore() {
   const value = useContext<AppStateContextValue>(context);
-  const { store, store$ } = value;
-  console.log(value);
-  return { store, store$ };
+  const { store, state$ } = value;
+  return { store, state$ };
 }
