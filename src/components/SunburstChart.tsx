@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react';
 import { asEffectReset } from '../lib/rx';
-import { toArray } from '../models/citation-tree';
+import { DeepReadonly } from '../lib/types';
+import { cloneShallow, FlatTreeNode, toArray } from '../models/citation-tree';
 import { selectGrouped, useRxAppStore } from '../store';
 import { map } from 'rxjs';
 import * as ReactVega from 'react-vega';
 import type { Spec } from 'vega';
+import { setRoot } from '../store/reducers/filter';
 
 const dataSetName = 'tree';
+const nodeClickSignal = 'nodeClick';
 const Chart = ReactVega.createClassFromSpec({
   mode: 'vega',
   spec: {
     $schema: 'https://vega.github.io/schema/vega/v5.json',
-    description: 'An example of a space-fulling radial layout for hierarchical data.',
+    description: 'An citation tree.',
     width: 600,
     height: 600,
     padding: 5,
@@ -27,7 +30,6 @@ const Chart = ReactVega.createClassFromSpec({
     data: [
       {
         name: dataSetName,
-        // url: 'data/flare.json',
         transform: [
           {
             type: 'stratify',
@@ -68,25 +70,69 @@ const Chart = ReactVega.createClassFromSpec({
           },
           hover: {
             stroke: { value: 'red' },
-            cursor: { value: 'pointer' },
+            cursor: { signal: 'hoverNonLeafCursor' },
             strokeWidth: { value: 2 },
             zindex: { value: 1 },
           },
         },
       },
     ],
-    // signals: [{
-    //   name: 'valueClick'
-    // }]
+    signals: [
+      {
+        name: 'hoverNonLeafCursor',
+        on: [
+          {
+            events: '*:mouseover',
+            update: 'isNumber(datum.groupedValue) ? "pointer" : "inherit"',
+          },
+        ],
+      },
+      {
+        name: nodeClickSignal,
+        on: [
+          {
+            events: {
+              type: 'click',
+              filter: ['item().datum', 'isNumber(item().datum.groupedValue)'],
+            },
+
+            update: 'datum',
+            force: true,
+          },
+        ],
+      },
+    ],
   } as Spec,
 });
 
 export function SunburstChart() {
   const { store, state$ } = useRxAppStore();
   const [grouped, setGrouped] = useState(selectGrouped(store.getState()));
-  useEffect(() => asEffectReset(state$.pipe(map(selectGrouped)).subscribe(setGrouped)), [state$, grouped]);
+  useEffect(
+    () =>
+      asEffectReset(
+        state$.pipe(map(selectGrouped)).subscribe((value) => {
+          const newValue = cloneShallow(value);
+          newValue.parent = null;
+          setGrouped(newValue);
+        })
+      ),
+    [state$, grouped]
+  );
   const data = toArray(grouped);
   console.log('grouped', grouped, data);
-
-  return <Chart data={{ [dataSetName]: data }} />;
+  return (
+    <Chart
+      data={{ [dataSetName]: data }}
+      onNewView={(view) => {
+        view.addSignalListener(nodeClickSignal, (_, datum: DeepReadonly<FlatTreeNode<any>>) => {
+          console.log('clicked', datum);
+          store.dispatch(setRoot(datum.id));
+        });
+        // setTimeout(() => {
+        //   // view
+        // }, 1000);
+      }}
+    />
+  );
 }

@@ -12,6 +12,10 @@ export enum TreeNodeType {
 
 interface TreeNodeCommon<T extends TreeNodeType> {
   /**
+   * Parent node ID.
+   */
+  parent: Nullable<string>;
+  /**
    * Name, a university, a department, person's name.
    */
   id: string;
@@ -20,7 +24,6 @@ interface TreeNodeCommon<T extends TreeNodeType> {
 }
 
 interface AnyTreeNode<T extends TreeNodeType> extends TreeNodeCommon<T> {
-  parent: Nullable<AnyTreeNode<TreeNodeType>>;
   /**
    * The amount of citations
    */
@@ -29,7 +32,6 @@ interface AnyTreeNode<T extends TreeNodeType> extends TreeNodeCommon<T> {
 }
 
 export interface FlatTreeNode<T extends TreeNodeType> extends TreeNodeCommon<T> {
-  parent: Nullable<string>;
   /**
    * The amount of citations.
    */
@@ -72,19 +74,19 @@ type SerializableTreeNodes = {
     children: SerializableTreeNode<TreeNodeType.University>[];
   };
   [TreeNodeType.University]: AnyTreeNode<TreeNodeType.University> & {
-    parent: null;
+    parent: string;
     children: SerializableTreeNode<TreeNodeType.Faculty>[];
   };
   [TreeNodeType.Faculty]: AnyTreeNode<TreeNodeType.Faculty> & {
-    parent: null;
+    parent: string;
     children: SerializableTreeNode<TreeNodeType.Department>[];
   };
   [TreeNodeType.Department]: AnyTreeNode<TreeNodeType.Department> & {
-    parent: null;
+    parent: string;
     children: SerializableTreeNode<TreeNodeType.Person>[];
   };
   [TreeNodeType.Person]: AnyTreeNode<TreeNodeType.Person> & {
-    parent: null;
+    parent: string;
     children: null;
   };
 };
@@ -145,7 +147,7 @@ export function toSerializableCitationTree(
       university.value += citation.pubs;
     } else {
       university = {
-        parent: null,
+        parent: root.id,
         id: universityId,
         type: TreeNodeType.University,
         name: idExtractors[TreeNodeType.University].extractName(citation),
@@ -163,7 +165,7 @@ export function toSerializableCitationTree(
       faculty.value += citation.pubs;
     } else {
       faculty = {
-        parent: null,
+        parent: university.id,
         id: facultyId,
         type: TreeNodeType.Faculty,
         name: idExtractors[TreeNodeType.Faculty].extractName(citation),
@@ -181,7 +183,7 @@ export function toSerializableCitationTree(
       department.value += citation.pubs;
     } else {
       department = {
-        parent: null,
+        parent: faculty.id,
         id: departmentId,
         type: TreeNodeType.Department,
         name: idExtractors[TreeNodeType.Department].extractName(citation),
@@ -192,7 +194,7 @@ export function toSerializableCitationTree(
       faculty.children.push(department);
     }
     const node: SerializableTreeNode<TreeNodeType.Person> = {
-      parent: null,
+      parent: department.id,
       id: idExtractors[TreeNodeType.Person].extractId(citation),
       type: TreeNodeType.Person,
       name: idExtractors[TreeNodeType.Person].extractName(citation),
@@ -205,26 +207,49 @@ export function toSerializableCitationTree(
   return root;
 }
 
+export type SerializableTreeNodeMap = Record<string, SerializableTreeNode<any>>;
+
+export function toSerializableMap(tree: DeepReadonly<SerializableTreeNode<any>>): SerializableTreeNodeMap {
+  const map: SerializableTreeNodeMap = {};
+  const queue: DeepReadonly<AnyTreeNode<any>>[] = [tree];
+  while (queue.length > 0) {
+    const node = queue[0];
+    const newNode = cloneShallow(node, []);
+    map[node.id] = newNode;
+    if (typeof node.parent === 'string') {
+      const parent = map[node.parent];
+      if (!parent.children) {
+        throw new Error('Unknown issue with missing children!');
+      }
+      parent.children.push(newNode);
+    }
+    queue.shift();
+    if (node.children) {
+      for (const child of node.children) {
+        if (map[child.id]) {
+          continue;
+        }
+        queue.push(child);
+      }
+    }
+  }
+  return map;
+}
+
 export function toArray(tree: DeepReadonly<SerializableTreeNode<any>>): FlatTreeNode<any>[] {
   const array: DeepReadonly<FlatTreeNode<any>>[] = [];
-  const queue: { node: DeepReadonly<AnyTreeNode<any>>; parent: Nullable<DeepReadonly<AnyTreeNode<any>>> }[] = [
-    { node: tree, parent: null },
-  ];
+  const queue: DeepReadonly<AnyTreeNode<any>>[] = [tree];
   const processed = new Set<string>();
   while (queue.length > 0) {
-    const { node, parent } = queue[0];
+    const node = queue[0];
     const newNode = cloneCommon<FlatTreeNode<any>>(node);
-    newNode.parent = parent?.id ?? null;
     array.push(newNode);
     queue.shift();
     processed.add(node.id);
     if (node.children) {
       for (const child of node.children) {
         if (!processed.has(child.id)) {
-          queue.push({
-            node: child,
-            parent: node,
-          });
+          queue.push(child);
         }
       }
       newNode.groupedValue = node.value;
@@ -249,9 +274,20 @@ export function toArray(tree: DeepReadonly<SerializableTreeNode<any>>): FlatTree
 //   }
 // }
 
+export function cloneShallow(
+  node: DeepReadonly<SerializableTreeNode<any>>,
+  children = node.children
+): SerializableTreeNode<any> {
+  const newNode = cloneCommon<SerializableTreeNode<any>>(node);
+  newNode.value = node.value;
+  newNode.children = children?.slice();
+  return newNode;
+}
+
 function cloneCommon<T extends TreeNodeCommon<any> = TreeNodeCommon<any>>(node: DeepReadonly<TreeNodeCommon<any>>): T {
   return {
     id: node.id,
+    parent: node.parent,
     type: node.type,
     name: node.name,
   } as T;

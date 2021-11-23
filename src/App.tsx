@@ -1,7 +1,7 @@
 import React from 'react';
 import './App.scss';
 import { SunburstChart } from './components/SunburstChart';
-import { useAppStore, useRxAppStore } from './store';
+import { useAppStore } from './store';
 import { loadRaw } from './store/reducers/loader';
 
 function App() {
@@ -12,12 +12,12 @@ function App() {
     <div className="App">
       <header className="App-header">
         <SunburstChart />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a className="App-link" href="https://reactjs.org" target="_blank" rel="noopener noreferrer">
-          Learn React
-        </a>
+        {/*<p>*/}
+        {/*  Edit <code>src/App.tsx</code> and save to reload.*/}
+        {/*</p>*/}
+        {/*<a className="App-link" href="https://reactjs.org" target="_blank" rel="noopener noreferrer">*/}
+        {/*  Learn React*/}
+        {/*</a>*/}
       </header>
     </div>
   );

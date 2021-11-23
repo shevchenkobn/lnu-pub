@@ -1,35 +1,47 @@
 import { createReducer, createStore, Store } from '@reduxjs/toolkit';
 import { Context, createContext, FunctionComponent, useContext, useEffect, useMemo } from 'react';
-import { createStoreHook, Provider, ReactReduxContextValue, useStore } from 'react-redux';
+import { createStoreHook, Provider, ReactReduxContextValue } from 'react-redux';
 import { Observable, Subject } from 'rxjs';
-import { createTreeRoot, toSerializableCitationTree } from '../models/citation-tree';
+import { createTreeRoot, toSerializableCitationTree, toSerializableMap } from '../models/citation-tree';
 import type { RootState, AppStore } from './constant-lib';
+import { setRoot, SetRootAction } from './reducers/filter';
 import { loadRaw, LoadRawAction } from './reducers/loader';
 
 const initialState: RootState = {
   data: {
     raw: [],
-    allGrouped: createTreeRoot(),
-    grouped: createTreeRoot(),
+    fullTree: createTreeRoot(),
+    tree: createTreeRoot(),
+    idMap: {},
   },
 };
 
-type AppAction = LoadRawAction;
+type AppAction = LoadRawAction | SetRootAction;
 
 export function createAppStore() {
   return createStore(
     createReducer(initialState, (builder) => {
-      builder.addCase(loadRaw.type, (state, action: LoadRawAction) => {
-        state.data.raw = action.payload;
-        state.data.allGrouped = toSerializableCitationTree(state.data.raw);
-        state.data.grouped = state.data.allGrouped;
-      });
+      builder
+        .addCase(loadRaw.type, (state, action: LoadRawAction) => {
+          state.data.raw = action.payload;
+          state.data.fullTree = toSerializableCitationTree(state.data.raw);
+          state.data.tree = state.data.fullTree;
+          state.data.idMap = toSerializableMap(state.data.fullTree);
+          console.log(state.data.idMap);
+        })
+        .addCase(setRoot.type, (state, action: SetRootAction) => {
+          const subTree = state.data.idMap[action.payload];
+          if (!subTree) {
+            throw new TypeError(`Tree with ID ${action.payload} does not exist!`);
+          }
+          state.data.tree = subTree;
+        });
     })
   );
 }
 
 export function selectGrouped(state: RootState) {
-  return state.data.grouped;
+  return state.data.tree;
 }
 
 interface AppStateContextValue extends ReactReduxContextValue<RootState, AppAction> {
