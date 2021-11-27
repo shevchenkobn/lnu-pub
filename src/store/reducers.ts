@@ -1,9 +1,11 @@
 import { ActionReducerMapBuilder } from '@reduxjs/toolkit/src/mapBuilders';
 import { toSerializableCitationTree, toSerializableMap } from '../models/citation-tree';
-import { setRoot, SetRootAction } from './actions/filter';
+import { setRoot, SetRootIdAction } from './actions/filter';
 import { hoverNodeId, HoverNodeIdAction } from './actions/hover-node.id';
 import { loadRaw, LoadRawAction } from './actions/load-raw';
 import { getAssertedNode, RootState } from './constant-lib';
+
+export type AppAction = LoadRawAction | SetRootIdAction | HoverNodeIdAction;
 
 export function buildReducers(builder: ActionReducerMapBuilder<RootState>) {
   builder
@@ -13,12 +15,12 @@ export function buildReducers(builder: ActionReducerMapBuilder<RootState>) {
       state.data.tree = state.data.fullTree;
       state.data.idMap = toSerializableMap(state.data.fullTree);
     })
-    .addCase(setRoot.type, (state, action: SetRootAction) => {
+    .addCase(setRoot.type, (state, action: SetRootIdAction) => {
       state.data.tree = getAssertedNode(state, action.payload);
+      state.data.hoveredNodeId = null;
     })
     .addCase(hoverNodeId.type, (state, action: HoverNodeIdAction) => {
-      console.log('reducing hover', action.payload);
-      // debugger;
+      // console.log('reducing hover', action.payload);
       state.data.hoveredNodeId = !action.payload ? null : getAssertedNode(state, action.payload).id;
     });
 }

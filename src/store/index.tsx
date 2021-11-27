@@ -2,13 +2,9 @@ import { createReducer, createStore, Store } from '@reduxjs/toolkit';
 import { Context, createContext, FunctionComponent, useContext, useEffect, useMemo } from 'react';
 import { createStoreHook, Provider, ReactReduxContextValue } from 'react-redux';
 import { Observable, Subject } from 'rxjs';
-import { SetRootAction } from './actions/filter';
-import { LoadRawAction } from './actions/load-raw';
-import { getInitialState } from './constant-lib';
 import type { AppStore, RootState } from './constant-lib';
-import { buildReducers } from './reducers';
-
-type AppAction = LoadRawAction | SetRootAction;
+import { getInitialState } from './constant-lib';
+import { AppAction, buildReducers } from './reducers';
 
 export function createAppStore() {
   return createStore(

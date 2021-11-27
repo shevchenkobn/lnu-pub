@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { View } from 'react-vega';
 import { asEffectReset } from '../lib/rx';
 import { DeepReadonly, Nullable } from '../lib/types';
 import {
@@ -10,12 +11,12 @@ import {
   TreeNodeType,
 } from '../models/citation-tree';
 import { useRxAppStore } from '../store';
-import { distinct, map } from 'rxjs';
+import { distinctUntilChanged, map } from 'rxjs';
 import * as ReactVega from 'react-vega';
 import type { Spec } from 'vega';
 import { setRoot } from '../store/actions/filter';
 import { hoverNodeId } from '../store/actions/hover-node.id';
-import { getAssertedNode, RootState, selectGrouped, selectHoveredNodeId } from '../store/constant-lib';
+import { getAssertedNode, RootState, selectTree, selectHoveredNodeId } from '../store/constant-lib';
 
 const dataSetName = 'tree';
 
@@ -130,55 +131,54 @@ const Chart = ReactVega.createClassFromSpec({
   } as Spec,
 });
 
+// const set = new WeakSet();
 export function SunburstChart() {
   const { store, state$ } = useRxAppStore();
-  const state = store.getState();
-  const hoveredNodeId = selectHoveredNodeId(state);
-  const [data, setData] = useState<FlatTreeNode<any>[]>(mapGrouped(selectGrouped(state)));
-  const [hoveredNode, setHoveredNode] = useState<FlatTreeNode<any> | NoHoveredNode>(getFlatNode(state, hoveredNodeId));
+  const vegaRef = useRef<Nullable<View>>(null);
+  const [tree, setTree] = useState<SerializableTreeNode<any>>(selectTree(store.getState()));
   useEffect(
     () =>
       asEffectReset(
-        state$.pipe(map(selectGrouped), distinct()).subscribe((value) => {
-          setData(mapGrouped(value));
+        state$.pipe(map(selectTree), distinctUntilChanged()).subscribe((value) => {
+          setTree(value);
         })
       ),
-    [state$, data]
+    [state$, tree]
   );
-  console.log('render', hoveredNode);
+  // console.log('render chart', tree, set.has(tree));
+  // set.add(tree);
   useEffect(
     () =>
       asEffectReset(
-        state$.pipe(map(selectHoveredNodeId), distinct()).subscribe((value) => {
-          console.log('state$ nodeId', value);
-          setHoveredNode(getFlatNode(state, value));
+        state$.pipe(map(selectHoveredNodeId), distinctUntilChanged()).subscribe((value) => {
+          if (!vegaRef.current) {
+            console.error('Failed to show hovered node, view is not initialized!');
+            return;
+          }
+          vegaRef.current
+            .signal(nodeHoverSignal, getFlatNode(store.getState(), value))
+            .runAsync()
+            .catch((error) => console.error('Failed to highlight node:', getFlatNode(store.getState(), value), error));
         })
       ),
-    [state$, hoveredNode, state]
+    [state$, store]
   );
+
   return (
     <Chart
-      data={{ [dataSetName]: data }}
+      data={{ [dataSetName]: mapTree(tree) }}
       onNewView={(view) => {
-        console.log('onNewView node', hoveredNode);
-        // setTimeout(() => {
-        //   console.log('callback');
-        //   setData([...data]);
-        // }, 3000);
-
-        view
-          .signal(nodeHoverSignal, hoveredNode)
-          .runAsync()
-          .catch((error) => console.error('Failed to render on hover:', error));
+        vegaRef.current = view;
+        console.debug('[chart] assign view', view);
 
         view.addSignalListener(nodeClickSignal, (_, datum: DeepReadonly<FlatTreeNode<any>>) => {
-          if (state.data.tree.id === datum.id) {
+          if (selectTree(store.getState()).id === datum.id) {
             return;
           }
           store.dispatch(setRoot(datum.id));
         });
         view.addSignalListener(nodeHoverSignal, (_, datum: DeepReadonly<FlatTreeNode<any>>) => {
-          if (hoveredNode.id === datum.id) {
+          if (selectHoveredNodeId(store.getState()) === datum.id) {
             return;
           }
           store.dispatch(hoverNodeId(datum.id));
@@ -188,7 +188,7 @@ export function SunburstChart() {
   );
 }
 
-function mapGrouped(
+function mapTree(
   tree: DeepReadonly<SerializableTreeNode<Exclude<TreeNodeType, TreeNodeType.Person>>>
 ): FlatTreeNode<any>[] {
   const newValue = cloneShallow(tree);

@@ -44,7 +44,7 @@ export function getInitialState(): RootState {
   };
 }
 
-export function selectGrouped(state: RootState) {
+export function selectTree(state: RootState) {
   return state.data.tree;
 }
 
