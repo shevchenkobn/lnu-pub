@@ -1,7 +1,7 @@
 import { ActionReducerMapBuilder } from '@reduxjs/toolkit/src/mapBuilders';
 import { toSerializableCitationTree, toSerializableMap } from '../models/citation-tree';
 import { setRoot, SetRootIdAction } from './actions/filter';
-import { hoverNodeId, HoverNodeIdAction } from './actions/hover-node.id';
+import { hoverNodeId, HoverNodeIdAction } from './actions/hover-node-id';
 import { loadRaw, LoadRawAction } from './actions/load-raw';
 import { getAssertedNode, RootState } from './constant-lib';
 
@@ -20,7 +20,6 @@ export function buildReducers(builder: ActionReducerMapBuilder<RootState>) {
       state.data.hoveredNodeId = null;
     })
     .addCase(hoverNodeId.type, (state, action: HoverNodeIdAction) => {
-      // console.log('reducing hover', action.payload);
       state.data.hoveredNodeId = !action.payload ? null : getAssertedNode(state, action.payload).id;
     });
 }

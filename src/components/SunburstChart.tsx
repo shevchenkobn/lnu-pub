@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { PropsWithChildren, useEffect, useRef, useState } from 'react';
 import { View } from 'react-vega';
 import { asEffectReset } from '../lib/rx';
 import { DeepReadonly, Nullable } from '../lib/types';
@@ -10,33 +10,40 @@ import {
   toFlatNode,
   TreeNodeType,
 } from '../models/citation-tree';
+import { Point } from '../models/common';
 import { useRxAppStore } from '../store';
 import { distinctUntilChanged, map } from 'rxjs';
 import * as ReactVega from 'react-vega';
 import type { Spec } from 'vega';
 import { setRoot } from '../store/actions/filter';
-import { hoverNodeId } from '../store/actions/hover-node.id';
+import { hoverNodeId } from '../store/actions/hover-node-id';
 import { getAssertedNode, RootState, selectTree, selectHoveredNodeId } from '../store/constant-lib';
+import classNames from './SunburstChart.module.scss';
 
 const dataSetName = 'tree';
 
 const nodeClickSignal = 'nodeClicked';
 const nodeHoverSignal = 'nodeHovered';
 const nonLeafHoveredSignal = 'nonLeafHovered';
+const widthSignal = 'width';
+const heightSignal = 'height';
 
-interface NoHoveredNode {
-  id: null;
-}
+const defaultWidth = 600;
+const defaultHeight = 600;
 
 const Chart = ReactVega.createClassFromSpec({
   mode: 'vega',
   spec: {
     $schema: 'https://vega.github.io/schema/vega/v5.json',
-    description: 'An citation tree.',
-    width: 600,
-    height: 600,
-    padding: 5,
-    autosize: 'none',
+    description: 'A citation tree.',
+    width: { signal: widthSignal },
+    height: { signal: heightSignal },
+    padding: 0,
+    autosize: {
+      type: 'fit',
+      contains: 'padding',
+      resize: true,
+    },
     scales: [
       {
         name: 'color',
@@ -76,6 +83,16 @@ const Chart = ReactVega.createClassFromSpec({
             update: 'datum || { id: null }',
           },
         ],
+      },
+      {
+        name: widthSignal,
+        value: defaultWidth,
+        on: [{ events: 'window:resize', update: `containerSize()[0] || ${defaultWidth}` }],
+      },
+      {
+        name: heightSignal,
+        value: defaultHeight,
+        on: [{ events: 'window:resize', update: `containerSize()[1] || ${defaultHeight}` }],
       },
       {
         name: nonLeafHoveredSignal,
@@ -131,11 +148,17 @@ const Chart = ReactVega.createClassFromSpec({
   } as Spec,
 });
 
+export interface SunburstChartProps {
+  width?: number;
+  height?: number;
+}
+
 // const set = new WeakSet();
-export function SunburstChart() {
+export function SunburstChart({ width, height }: PropsWithChildren<SunburstChartProps>) {
   const { store, state$ } = useRxAppStore();
-  const vegaRef = useRef<Nullable<View>>(null);
+  const viewRef = useRef<Nullable<View>>(null);
   const [tree, setTree] = useState<SerializableTreeNode<any>>(selectTree(store.getState()));
+
   useEffect(
     () =>
       asEffectReset(
@@ -145,17 +168,17 @@ export function SunburstChart() {
       ),
     [state$, tree]
   );
-  // console.log('render chart', tree, set.has(tree));
+  // console.debug('render chart', tree, set.has(tree));
   // set.add(tree);
   useEffect(
     () =>
       asEffectReset(
         state$.pipe(map(selectHoveredNodeId), distinctUntilChanged()).subscribe((value) => {
-          if (!vegaRef.current) {
+          if (!viewRef.current) {
             console.error('Failed to show hovered node, view is not initialized!');
             return;
           }
-          vegaRef.current
+          viewRef.current
             .signal(nodeHoverSignal, getFlatNode(store.getState(), value))
             .runAsync()
             .catch((error) => console.error('Failed to highlight node:', getFlatNode(store.getState(), value), error));
@@ -166,10 +189,11 @@ export function SunburstChart() {
 
   return (
     <Chart
+      className={classNames.SunburstChart}
       data={{ [dataSetName]: mapTree(tree) }}
       onNewView={(view) => {
-        vegaRef.current = view;
-        console.debug('[chart] assign view', view);
+        viewRef.current = view;
+        console.log('[chart] assign view', view);
 
         view.addSignalListener(nodeClickSignal, (_, datum: DeepReadonly<FlatTreeNode<any>>) => {
           if (selectTree(store.getState()).id === datum.id) {
@@ -198,4 +222,8 @@ function mapTree(
 
 function getFlatNode(state: RootState, nodeId: Nullable<string>) {
   return nodeId ? toFlatNode(getAssertedNode(state, nodeId)) : { id: null };
+}
+
+export function fitAllCharts() {
+  setTimeout(() => window.dispatchEvent(new Event('resize')));
 }
