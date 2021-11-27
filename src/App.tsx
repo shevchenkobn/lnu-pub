@@ -2,11 +2,19 @@ import React from 'react';
 import './App.scss';
 import { SunburstChart } from './components/SunburstChart';
 import { useAppStore } from './store';
-import { loadRaw } from './store/reducers/loader';
+import { hoverNodeId } from './store/actions/hover-node.id';
+import { loadRaw } from './store/actions/load-raw';
 
 function App() {
+  console.log('wtf render');
   const store = useAppStore();
   store.dispatch(loadRaw());
+  setTimeout(() => {
+    store.dispatch(hoverNodeId('dSPR'));
+  }, 2000);
+  // setTimeout(() => {
+  //   store.dispatch(hoverNodeId('uLNU'));
+  // }, 4000);
 
   return (
     <div className="App">

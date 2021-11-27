@@ -4,7 +4,7 @@ import { ActionType } from '../constant-lib';
 
 export type LoadRawAction = ReturnType<typeof loadRaw>;
 
-export const loadRaw = createAction(ActionType.Load, () => ({
+export const loadRaw = createAction(ActionType.LoadRaw, () => ({
   payload: [
     {
       id: 'av22cj',

@@ -2,46 +2,20 @@ import { createReducer, createStore, Store } from '@reduxjs/toolkit';
 import { Context, createContext, FunctionComponent, useContext, useEffect, useMemo } from 'react';
 import { createStoreHook, Provider, ReactReduxContextValue } from 'react-redux';
 import { Observable, Subject } from 'rxjs';
-import { createTreeRoot, toSerializableCitationTree, toSerializableMap } from '../models/citation-tree';
-import type { RootState, AppStore } from './constant-lib';
-import { setRoot, SetRootAction } from './reducers/filter';
-import { loadRaw, LoadRawAction } from './reducers/loader';
-
-const initialState: RootState = {
-  data: {
-    raw: [],
-    fullTree: createTreeRoot(),
-    tree: createTreeRoot(),
-    idMap: {},
-  },
-};
+import { SetRootAction } from './actions/filter';
+import { LoadRawAction } from './actions/load-raw';
+import { getInitialState } from './constant-lib';
+import type { AppStore, RootState } from './constant-lib';
+import { buildReducers } from './reducers';
 
 type AppAction = LoadRawAction | SetRootAction;
 
 export function createAppStore() {
   return createStore(
-    createReducer(initialState, (builder) => {
-      builder
-        .addCase(loadRaw.type, (state, action: LoadRawAction) => {
-          state.data.raw = action.payload;
-          state.data.fullTree = toSerializableCitationTree(state.data.raw);
-          state.data.tree = state.data.fullTree;
-          state.data.idMap = toSerializableMap(state.data.fullTree);
-          console.log(state.data.idMap);
-        })
-        .addCase(setRoot.type, (state, action: SetRootAction) => {
-          const subTree = state.data.idMap[action.payload];
-          if (!subTree) {
-            throw new TypeError(`Tree with ID ${action.payload} does not exist!`);
-          }
-          state.data.tree = subTree;
-        });
+    createReducer(getInitialState(), (builder) => {
+      buildReducers(builder);
     })
   );
-}
-
-export function selectGrouped(state: RootState) {
-  return state.data.tree;
 }
 
 interface AppStateContextValue extends ReactReduxContextValue<RootState, AppAction> {

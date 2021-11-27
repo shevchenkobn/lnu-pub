@@ -1,5 +1,5 @@
 import { GuardedMap } from '../lib/map';
-import { DeepReadonly, Nullable } from '../lib/types';
+import { DeepReadonly, DeepReadonlyArray, Nullable } from '../lib/types';
 import { Citation } from './citation';
 
 export enum TreeNodeType {
@@ -214,7 +214,7 @@ export function toSerializableMap(tree: DeepReadonly<SerializableTreeNode<any>>)
   const queue: DeepReadonly<AnyTreeNode<any>>[] = [tree];
   while (queue.length > 0) {
     const node = queue[0];
-    const newNode = cloneShallow(node, []);
+    const newNode = cloneShallow(node, node.children ? [] : node.children);
     map[node.id] = newNode;
     if (typeof node.parent === 'string') {
       const parent = map[node.parent];
@@ -260,6 +260,16 @@ export function toArray(tree: DeepReadonly<SerializableTreeNode<any>>): FlatTree
   return array;
 }
 
+export function toFlatNode(node: DeepReadonly<SerializableTreeNode<any>>): FlatTreeNode<any> {
+  const newNode = cloneCommon<FlatTreeNode<any>>(node);
+  if (node.children) {
+    newNode.groupedValue = node.value;
+  } else {
+    newNode.value = node.value;
+  }
+  return newNode;
+}
+
 // export function toCitationTree(tree: TreeNode<TreeNodeType.Root>) {
 //   const root: TreeNode<TreeNodeType.Root> = cloneCommon(tree, []);
 //   for (const university of root.children) {
@@ -276,7 +286,7 @@ export function toArray(tree: DeepReadonly<SerializableTreeNode<any>>): FlatTree
 
 export function cloneShallow(
   node: DeepReadonly<SerializableTreeNode<any>>,
-  children = node.children
+  children: Nullable<DeepReadonlyArray<SerializableTreeNode<any>>> = node.children
 ): SerializableTreeNode<any> {
   const newNode = cloneCommon<SerializableTreeNode<any>>(node);
   newNode.value = node.value;

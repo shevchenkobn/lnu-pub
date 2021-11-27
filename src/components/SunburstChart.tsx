@@ -1,15 +1,32 @@
 import { useEffect, useState } from 'react';
 import { asEffectReset } from '../lib/rx';
-import { DeepReadonly } from '../lib/types';
-import { cloneShallow, FlatTreeNode, toArray } from '../models/citation-tree';
-import { selectGrouped, useRxAppStore } from '../store';
-import { map } from 'rxjs';
+import { DeepReadonly, Nullable } from '../lib/types';
+import {
+  cloneShallow,
+  FlatTreeNode,
+  SerializableTreeNode,
+  toArray,
+  toFlatNode,
+  TreeNodeType,
+} from '../models/citation-tree';
+import { useRxAppStore } from '../store';
+import { distinct, map } from 'rxjs';
 import * as ReactVega from 'react-vega';
 import type { Spec } from 'vega';
-import { setRoot } from '../store/reducers/filter';
+import { setRoot } from '../store/actions/filter';
+import { hoverNodeId } from '../store/actions/hover-node.id';
+import { getAssertedNode, RootState, selectGrouped, selectHoveredNodeId } from '../store/constant-lib';
 
 const dataSetName = 'tree';
-const nodeClickSignal = 'nodeClick';
+
+const nodeClickSignal = 'nodeClicked';
+const nodeHoverSignal = 'nodeHovered';
+const nonLeafHoveredSignal = 'nonLeafHovered';
+
+interface NoHoveredNode {
+  id: null;
+}
+
 const Chart = ReactVega.createClassFromSpec({
   mode: 'vega',
   spec: {
@@ -46,6 +63,42 @@ const Chart = ReactVega.createClassFromSpec({
         ],
       },
     ],
+    signals: [
+      {
+        name: nodeHoverSignal,
+        value: {
+          id: null,
+        },
+        on: [
+          {
+            events: 'mouseover',
+            update: 'datum || { id: null }',
+          },
+        ],
+      },
+      {
+        name: nonLeafHoveredSignal,
+        on: [
+          {
+            events: { signal: nodeHoverSignal },
+            update: `isNumber(${nodeHoverSignal}.groupedValue)`,
+          },
+        ],
+      },
+      {
+        name: nodeClickSignal,
+        on: [
+          {
+            events: {
+              type: 'click',
+              filter: ['item().datum', 'isNumber(item().datum.groupedValue)'],
+            },
+            update: 'datum',
+            force: true,
+          },
+        ],
+      },
+    ],
     marks: [
       {
         type: 'arc',
@@ -64,42 +117,14 @@ const Chart = ReactVega.createClassFromSpec({
             endAngle: { field: 'a1' },
             innerRadius: { field: 'r0' },
             outerRadius: { field: 'r1' },
-            stroke: { value: 'white' },
-            strokeWidth: { value: 0.5 },
-            zindex: { value: 0 },
+            stroke: [{ test: `${nodeHoverSignal}.id == datum.id`, value: 'red' }, { value: 'white' }],
+            strokeWidth: [{ test: `${nodeHoverSignal}.id == datum.id`, value: 2 }, { value: 0.5 }],
+            zindex: [{ test: `${nodeHoverSignal}.id == datum.id`, value: 1 }, { value: 0 }],
           },
           hover: {
-            stroke: { value: 'red' },
-            cursor: { signal: 'hoverNonLeafCursor' },
-            strokeWidth: { value: 2 },
-            zindex: { value: 1 },
+            cursor: [{ test: nonLeafHoveredSignal, value: 'pointer' }, { value: 'inherit' }],
           },
         },
-      },
-    ],
-    signals: [
-      {
-        name: 'hoverNonLeafCursor',
-        on: [
-          {
-            events: '*:mouseover',
-            update: 'isNumber(datum.groupedValue) ? "pointer" : "inherit"',
-          },
-        ],
-      },
-      {
-        name: nodeClickSignal,
-        on: [
-          {
-            events: {
-              type: 'click',
-              filter: ['item().datum', 'isNumber(item().datum.groupedValue)'],
-            },
-
-            update: 'datum',
-            force: true,
-          },
-        ],
       },
     ],
   } as Spec,
@@ -107,32 +132,70 @@ const Chart = ReactVega.createClassFromSpec({
 
 export function SunburstChart() {
   const { store, state$ } = useRxAppStore();
-  const [grouped, setGrouped] = useState(selectGrouped(store.getState()));
+  const state = store.getState();
+  const hoveredNodeId = selectHoveredNodeId(state);
+  const [data, setData] = useState<FlatTreeNode<any>[]>(mapGrouped(selectGrouped(state)));
+  const [hoveredNode, setHoveredNode] = useState<FlatTreeNode<any> | NoHoveredNode>(getFlatNode(state, hoveredNodeId));
   useEffect(
     () =>
       asEffectReset(
-        state$.pipe(map(selectGrouped)).subscribe((value) => {
-          const newValue = cloneShallow(value);
-          newValue.parent = null;
-          setGrouped(newValue);
+        state$.pipe(map(selectGrouped), distinct()).subscribe((value) => {
+          setData(mapGrouped(value));
         })
       ),
-    [state$, grouped]
+    [state$, data]
   );
-  const data = toArray(grouped);
-  console.log('grouped', grouped, data);
+  console.log('render', hoveredNode);
+  useEffect(
+    () =>
+      asEffectReset(
+        state$.pipe(map(selectHoveredNodeId), distinct()).subscribe((value) => {
+          console.log('state$ nodeId', value);
+          setHoveredNode(getFlatNode(state, value));
+        })
+      ),
+    [state$, hoveredNode, state]
+  );
   return (
     <Chart
       data={{ [dataSetName]: data }}
       onNewView={(view) => {
+        console.log('onNewView node', hoveredNode);
+        // setTimeout(() => {
+        //   console.log('callback');
+        //   setData([...data]);
+        // }, 3000);
+
+        view
+          .signal(nodeHoverSignal, hoveredNode)
+          .runAsync()
+          .catch((error) => console.error('Failed to render on hover:', error));
+
         view.addSignalListener(nodeClickSignal, (_, datum: DeepReadonly<FlatTreeNode<any>>) => {
-          console.log('clicked', datum);
+          if (state.data.tree.id === datum.id) {
+            return;
+          }
           store.dispatch(setRoot(datum.id));
         });
-        // setTimeout(() => {
-        //   // view
-        // }, 1000);
+        view.addSignalListener(nodeHoverSignal, (_, datum: DeepReadonly<FlatTreeNode<any>>) => {
+          if (hoveredNode.id === datum.id) {
+            return;
+          }
+          store.dispatch(hoverNodeId(datum.id));
+        });
       }}
     />
   );
+}
+
+function mapGrouped(
+  tree: DeepReadonly<SerializableTreeNode<Exclude<TreeNodeType, TreeNodeType.Person>>>
+): FlatTreeNode<any>[] {
+  const newValue = cloneShallow(tree);
+  newValue.parent = null;
+  return toArray(newValue);
+}
+
+function getFlatNode(state: RootState, nodeId: Nullable<string>) {
+  return nodeId ? toFlatNode(getAssertedNode(state, nodeId)) : { id: null };
 }
