@@ -1,0 +1,24 @@
+@import 'src/core.module';
+
+$node-border-width: 2px;
+
+.TreeView {
+  .app-antd-tree-node {
+    border: $node-border-width solid $antd_tree-node_background;
+    border-radius: 2px;
+    padding-right: 4px;
+    padding-left: 4px;
+
+    &-selected {
+      border-color: $node-selected-border-color;
+    }
+
+    &-child-selected {
+      border-color: $node-selected-child-border-color;
+    }
+  }
+
+  .ant-tree-switcher {
+    line-height: $antd_tree-switcher_line-height + $node-border-width * 2;
+  }
+}

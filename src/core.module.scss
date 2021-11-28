@@ -1,0 +1,9 @@
+@use 'sass:color';
+@import 'antd';
+
+$node-selected-border-color: red;
+$node-selected-child-border-color: color.adjust($node-selected-border-color, $alpha: -(color.alpha($node-selected-border-color) * .7));
+
+:export {
+  nodeHighlightBorderColor: $node-selected-border-color;
+}

@@ -4,7 +4,14 @@
 import { Action, miniSerializeError, ThunkAction } from '@reduxjs/toolkit';
 import { DeepReadonly, Nullable } from '../lib/types';
 import { Citation } from '../models/citation';
-import { createTreeRoot, SerializableTreeNode, SerializableTreeNodeMap, TreeNodeType } from '../models/citation-tree';
+import {
+  AnyTreeNode,
+  createTreeRoot,
+  NonLeafTreeNodeType,
+  SerializableTreeNode,
+  SerializableTreeNodeMap,
+  TreeNodeType,
+} from '../models/citation-tree';
 import { createAppStore } from './index';
 
 export type AppStore = ReturnType<typeof createAppStore>;
@@ -26,9 +33,10 @@ export type RootState = DeepReadonly<{
   data: {
     raw: Citation[];
     fullTree: SerializableTreeNode<TreeNodeType.Root>;
-    idMap: DeepReadonly<SerializableTreeNodeMap>;
-    tree: SerializableTreeNode<Exclude<TreeNodeType, TreeNodeType.Person>>;
+    idMap: SerializableTreeNodeMap;
+    tree: AnyTreeNode<any>;
     hoveredNodeId: Nullable<string>;
+    hoveredNodeParentIds: Nullable<ReadonlySet<string>>;
   };
 }>;
 
@@ -40,8 +48,13 @@ export function getInitialState(): RootState {
       tree: createTreeRoot(),
       idMap: {},
       hoveredNodeId: null,
+      hoveredNodeParentIds: null,
     },
   };
+}
+
+export function selectFullTree(state: RootState) {
+  return state.data.fullTree;
 }
 
 export function selectTree(state: RootState) {
@@ -52,7 +65,11 @@ export function selectHoveredNodeId(state: RootState) {
   return state.data.hoveredNodeId;
 }
 
-export function getAssertedNode(state: RootState, nodeId: string): DeepReadonly<SerializableTreeNode<any>> {
+export function selectHoveredNodeParentIds(state: RootState) {
+  return state.data.hoveredNodeParentIds;
+}
+
+export function getAssertedNode(state: RootState, nodeId: string): DeepReadonly<AnyTreeNode<any>> {
   const tree = state.data.idMap[nodeId];
   if (!tree) {
     throw new TypeError(`Tree with ID ${nodeId} does not exist!`);

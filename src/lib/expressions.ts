@@ -1,5 +1,7 @@
 // import { Optional } from './types';
 
+import { Optional } from './types';
+
 export function ifV<T, F, C extends boolean>(
   condition: () => C,
   trueExpression: (condition: true) => T,
@@ -8,16 +10,16 @@ export function ifV<T, F, C extends boolean>(
   return (condition() ? trueExpression(true) : falseExpression(false)) as any;
 }
 
-// export function when<V, S>(
+// export function whenFull<V, S>(
 //   switchV: S,
 //   cases: [caseV: S, expression: (breakF: () => void, caseV: S) => V][]
 // ): Optional<V>;
-// export function when<V, S>(
+// export function whenFull<V, S>(
 //   switchV: S,
 //   cases: [caseV: S, expression: (breakF: () => void, caseV: S) => V][],
 //   defaultE?: (caseV: S) => V
 // ): V;
-// export function when<V, S>(
+// export function whenFull<V, S>(
 //   switchV: S,
 //   cases: [caseV: S, expression: (breakF: () => void, caseV: S) => V][],
 //   defaultE?: (caseV: S) => V
@@ -39,7 +41,7 @@ export function ifV<T, F, C extends boolean>(
 //   return value;
 // }
 //
-// const value = when(ActionType.HoverNode, [
+// const value = whenFull(ActionType.HoverNode, [
 //   [
 //     ActionType.HoverNode,
 //     (breakF) => {
@@ -48,3 +50,29 @@ export function ifV<T, F, C extends boolean>(
 //     },
 //   ],
 // ]);
+
+export function when<V, S>(switchV: S, cases: [caseV: S, expression: (caseV: S) => V][]): Optional<V>;
+export function when<V, S>(switchV: S, cases: [caseV: S, expression: (caseV: S) => V][], defaultE?: (caseV: S) => V): V;
+export function when<V, S>(
+  switchV: S,
+  cases: [caseV: S, expression: (caseV: S) => V][],
+  defaultE?: (caseV: S) => V
+): Optional<V> {
+  for (const [caseV, expression] of cases) {
+    if (caseV === switchV) {
+      return expression(caseV);
+    }
+  }
+  if (defaultE) {
+    return defaultE(switchV);
+  }
+}
+
+export function whenT<V>(cases: [caseV: boolean, expression: (caseV: true) => V][]): Optional<V>;
+export function whenT<V>(cases: [caseV: boolean, expression: (caseV: true) => V][], defaultE?: (caseV: true) => V): V;
+export function whenT<V>(
+  cases: [caseV: boolean, expression: (caseV: true) => V][],
+  defaultE?: (caseV: true) => V
+): Optional<V> {
+  return when<V, boolean>(true, cases as any, defaultE as any);
+}

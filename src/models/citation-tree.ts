@@ -23,7 +23,7 @@ interface TreeNodeCommon<T extends TreeNodeType> {
   name: string;
 }
 
-interface AnyTreeNode<T extends TreeNodeType> extends TreeNodeCommon<T> {
+export interface AnyTreeNode<T extends TreeNodeType> extends TreeNodeCommon<T> {
   /**
    * The amount of citations
    */
@@ -64,6 +64,7 @@ export interface FlatTreeNode<T extends TreeNodeType> extends TreeNodeCommon<T> 
 //     children: null;
 //   };
 // };
+export type NonLeafTreeNodeType = MiddleTreeNodeType | TreeNodeType.Root;
 export type MiddleTreeNodeType = TreeNodeType.University | TreeNodeType.Faculty | TreeNodeType.Department;
 
 // export type TreeNode<T extends TreeNodeType> = TreeNodes[T];
@@ -207,14 +208,15 @@ export function toSerializableCitationTree(
   return root;
 }
 
-export type SerializableTreeNodeMap = Record<string, SerializableTreeNode<any>>;
+export type SerializableTreeNodeMap = Record<string, AnyTreeNode<any>>;
 
-export function toSerializableMap(tree: DeepReadonly<SerializableTreeNode<any>>): SerializableTreeNodeMap {
+export function toSerializableMap(tree: DeepReadonly<AnyTreeNode<any>>): SerializableTreeNodeMap {
   const map: SerializableTreeNodeMap = {};
   const queue: DeepReadonly<AnyTreeNode<any>>[] = [tree];
   while (queue.length > 0) {
     const node = queue[0];
-    const newNode = cloneShallow(node, node.children ? [] : node.children);
+    const newNode = cloneShallow(node);
+    newNode.children = node.children ? [] : node.children;
     map[node.id] = newNode;
     if (typeof node.parent === 'string') {
       const parent = map[node.parent];
@@ -236,7 +238,7 @@ export function toSerializableMap(tree: DeepReadonly<SerializableTreeNode<any>>)
   return map;
 }
 
-export function toArray(tree: DeepReadonly<SerializableTreeNode<any>>): FlatTreeNode<any>[] {
+export function toArray(tree: DeepReadonly<AnyTreeNode<any>>): FlatTreeNode<any>[] {
   const array: DeepReadonly<FlatTreeNode<any>>[] = [];
   const queue: DeepReadonly<AnyTreeNode<any>>[] = [tree];
   const processed = new Set<string>();
@@ -260,7 +262,7 @@ export function toArray(tree: DeepReadonly<SerializableTreeNode<any>>): FlatTree
   return array;
 }
 
-export function toFlatNode(node: DeepReadonly<SerializableTreeNode<any>>): FlatTreeNode<any> {
+export function toFlatNode(node: DeepReadonly<AnyTreeNode<any>>): FlatTreeNode<any> {
   const newNode = cloneCommon<FlatTreeNode<any>>(node);
   if (node.children) {
     newNode.groupedValue = node.value;
@@ -284,13 +286,10 @@ export function toFlatNode(node: DeepReadonly<SerializableTreeNode<any>>): FlatT
 //   }
 // }
 
-export function cloneShallow(
-  node: DeepReadonly<SerializableTreeNode<any>>,
-  children: Nullable<DeepReadonlyArray<SerializableTreeNode<any>>> = node.children
-): SerializableTreeNode<any> {
-  const newNode = cloneCommon<SerializableTreeNode<any>>(node);
+export function cloneShallow(node: DeepReadonly<AnyTreeNode<any>>): AnyTreeNode<any> {
+  const newNode = cloneCommon<AnyTreeNode<any>>(node);
   newNode.value = node.value;
-  newNode.children = children?.slice();
+  newNode.children = null;
   return newNode;
 }
 
@@ -312,4 +311,24 @@ export function createTreeRoot(): SerializableTreeNode<TreeNodeType.Root> {
     value: 0,
     children: [],
   };
+}
+
+export function* traverseParents<N extends { readonly parent: Nullable<string> }>(
+  node: Nullable<N>,
+  getNode: (id: string) => Nullable<N>
+) {
+  if (!node) {
+    return;
+  }
+  let currentId = node.parent;
+  while (currentId !== null) {
+    const current = getNode(currentId);
+    if (current) {
+      yield current;
+      currentId = current.parent;
+    } else {
+      console.error(`Failed parent traversal: node with id ${currentId} not found!`);
+      break;
+    }
+  }
 }

@@ -1,10 +1,12 @@
 import { PropsWithChildren, useEffect, useRef, useState } from 'react';
 import { View } from 'react-vega';
 import { asEffectReset } from '../lib/rx';
-import { DeepReadonly, Nullable } from '../lib/types';
+import { DeepReadonly, DeepReadonlyArray, Nullable } from '../lib/types';
 import {
+  AnyTreeNode,
   cloneShallow,
   FlatTreeNode,
+  NonLeafTreeNodeType,
   SerializableTreeNode,
   toArray,
   toFlatNode,
@@ -17,8 +19,15 @@ import * as ReactVega from 'react-vega';
 import type { Spec } from 'vega';
 import { setRoot } from '../store/actions/filter';
 import { hoverNodeId } from '../store/actions/hover-node-id';
-import { getAssertedNode, RootState, selectTree, selectHoveredNodeId } from '../store/constant-lib';
+import {
+  getAssertedNode,
+  RootState,
+  selectTree,
+  selectHoveredNodeParentIds,
+  selectHoveredNodeId,
+} from '../store/constant-lib';
 import classNames from './SunburstChart.module.scss';
+import scssCore from '../core.module.scss';
 
 const dataSetName = 'tree';
 
@@ -135,7 +144,10 @@ const Chart = ReactVega.createClassFromSpec({
             endAngle: { field: 'a1' },
             innerRadius: { field: 'r0' },
             outerRadius: { field: 'r1' },
-            stroke: [{ test: `${nodeHoverSignal}.id == datum.id`, value: 'red' }, { value: 'white' }],
+            stroke: [
+              { test: `${nodeHoverSignal}.id == datum.id`, value: scssCore.nodeHighlightBorderColor },
+              { value: 'white' },
+            ],
             strokeWidth: [{ test: `${nodeHoverSignal}.id == datum.id`, value: 2 }, { value: 0.5 }],
             zindex: [{ test: `${nodeHoverSignal}.id == datum.id`, value: 1 }, { value: 0 }],
           },
@@ -157,16 +169,16 @@ export interface SunburstChartProps {
 export function SunburstChart({ width, height }: PropsWithChildren<SunburstChartProps>) {
   const { store, state$ } = useRxAppStore();
   const viewRef = useRef<Nullable<View>>(null);
-  const [tree, setTree] = useState<SerializableTreeNode<any>>(selectTree(store.getState()));
+  const [data, setData] = useState<DeepReadonlyArray<FlatTreeNode<any>>>(mapTree(selectTree(store.getState())));
 
   useEffect(
     () =>
       asEffectReset(
         state$.pipe(map(selectTree), distinctUntilChanged()).subscribe((value) => {
-          setTree(value);
+          setData(mapTree(value));
         })
       ),
-    [state$, tree]
+    [state$, data]
   );
   // console.debug('render chart', tree, set.has(tree));
   // set.add(tree);
@@ -190,7 +202,7 @@ export function SunburstChart({ width, height }: PropsWithChildren<SunburstChart
   return (
     <Chart
       className={classNames.SunburstChart}
-      data={{ [dataSetName]: mapTree(tree) }}
+      data={{ [dataSetName]: data }}
       onNewView={(view) => {
         viewRef.current = view;
         console.log('[chart] assign view', view);
@@ -212,11 +224,10 @@ export function SunburstChart({ width, height }: PropsWithChildren<SunburstChart
   );
 }
 
-function mapTree(
-  tree: DeepReadonly<SerializableTreeNode<Exclude<TreeNodeType, TreeNodeType.Person>>>
-): FlatTreeNode<any>[] {
+function mapTree(tree: DeepReadonly<AnyTreeNode<any>>): FlatTreeNode<any>[] {
   const newValue = cloneShallow(tree);
   newValue.parent = null;
+  newValue.children = tree.children ? (tree.children.slice() as AnyTreeNode<any>[]) : null;
   return toArray(newValue);
 }
 
