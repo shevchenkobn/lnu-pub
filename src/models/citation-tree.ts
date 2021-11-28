@@ -10,7 +10,11 @@ export enum TreeNodeType {
   Person = 'person',
 }
 
-interface TreeNodeCommon<T extends TreeNodeType> {
+export interface TreeNodeParentable {
+  readonly parent: Nullable<string>;
+}
+
+interface TreeNodeCommon<T extends TreeNodeType> extends TreeNodeParentable {
   /**
    * Parent node ID.
    */
@@ -302,18 +306,46 @@ function cloneCommon<T extends TreeNodeCommon<any> = TreeNodeCommon<any>>(node: 
   } as T;
 }
 
-export function createTreeRoot(): SerializableTreeNode<TreeNodeType.Root> {
-  return {
-    parent: null,
-    id: '/',
-    type: TreeNodeType.Root,
-    name: 'Universities',
-    value: 0,
-    children: [],
-  };
+interface QueueEntry {
+  parentChildren: AnyTreeNode<any>[];
+  node: DeepReadonly<AnyTreeNode<any>>;
 }
 
-export function* traverseParents<N extends { readonly parent: Nullable<string> }>(
+export function getFilteredTree(
+  tree: DeepReadonly<AnyTreeNode<any>>,
+  predicate: (node: DeepReadonly<AnyTreeNode<any>>) => boolean
+): Nullable<AnyTreeNode<any>> {
+  if (!predicate(tree)) {
+    return null;
+  }
+  const root = cloneShallow(tree);
+  if (!tree.children) {
+    return root;
+  }
+  root.children = [];
+  const queue: QueueEntry[] = tree.children.map((node) => ({ parentChildren: root.children!, node }));
+  while (queue.length > 0) {
+    const { parentChildren, node } = queue[0];
+    queue.shift();
+    if (!predicate(node)) {
+      continue;
+    }
+    const newNode = cloneShallow(node);
+    if (node.children) {
+      const children: AnyTreeNode<any>[] = [];
+      newNode.children = children;
+      for (const child of node.children) {
+        queue.push({ parentChildren: children, node: child });
+      }
+    } else {
+      newNode.children = null;
+    }
+    parentChildren.push(newNode);
+  }
+  return root;
+}
+
+export function* traverseParents<N extends TreeNodeParentable>(
   node: Nullable<N>,
   getNode: (id: string) => Nullable<N>
 ) {
@@ -331,4 +363,15 @@ export function* traverseParents<N extends { readonly parent: Nullable<string> }
       break;
     }
   }
+}
+
+export function createTreeRoot(): SerializableTreeNode<TreeNodeType.Root> {
+  return {
+    parent: null,
+    id: '/',
+    type: TreeNodeType.Root,
+    name: 'Universities',
+    value: 0,
+    children: [],
+  };
 }

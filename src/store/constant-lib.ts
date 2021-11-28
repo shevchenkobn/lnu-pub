@@ -26,6 +26,7 @@ export interface ActionWithPayload<T> extends Action<string> {
 export enum ActionType {
   LoadRaw = 'loadRaw',
   SetTreeRoot = 'setRoot',
+  SelectIds = 'selectIds',
   HoverNode = 'hover',
 }
 
@@ -34,9 +35,16 @@ export type RootState = DeepReadonly<{
     raw: Citation[];
     fullTree: SerializableTreeNode<TreeNodeType.Root>;
     idMap: SerializableTreeNodeMap;
-    tree: AnyTreeNode<any>;
+    filteredTree: SerializableTreeNode<TreeNodeType.Root>;
+    selectedTree: Nullable<AnyTreeNode<any>>;
+    rootId: string;
+    treeParentIds: string[];
+    selectedIds: {
+      fully: string[];
+      half: string[];
+    };
     hoveredNodeId: Nullable<string>;
-    hoveredNodeParentIds: Nullable<ReadonlySet<string>>;
+    hoveredNodeParentIds: Nullable<string[]>;
   };
 }>;
 
@@ -45,24 +53,43 @@ export function getInitialState(): RootState {
     data: {
       raw: [],
       fullTree: createTreeRoot(),
-      tree: createTreeRoot(),
       idMap: {},
+      filteredTree: createTreeRoot(),
+      selectedTree: createTreeRoot(),
+      rootId: '',
+      treeParentIds: [],
+      selectedIds: {
+        fully: [],
+        half: [],
+      },
       hoveredNodeId: null,
       hoveredNodeParentIds: null,
     },
   };
 }
 
-export function selectFullTree(state: RootState) {
-  return state.data.fullTree;
+export function selectFilteredTree(state: RootState) {
+  return state.data.filteredTree;
 }
 
-export function selectTree(state: RootState) {
-  return state.data.tree;
+export function selectSelectedTree(state: RootState) {
+  return state.data.selectedTree;
+}
+
+export function selectSelectedIds(state: RootState) {
+  return state.data.selectedIds;
+}
+
+export function selectTreeParentIds(state: RootState) {
+  return state.data.treeParentIds;
 }
 
 export function selectHoveredNodeId(state: RootState) {
   return state.data.hoveredNodeId;
+}
+
+export function selectRootId(state: RootState) {
+  return state.data.rootId;
 }
 
 export function selectHoveredNodeParentIds(state: RootState) {

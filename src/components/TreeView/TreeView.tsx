@@ -1,4 +1,5 @@
 import { Tree } from 'antd';
+import { iterate } from 'iterare';
 import { DataNode } from 'rc-tree/lib/interface';
 import { useEffect, useMemo, useState } from 'react';
 import { distinctUntilChanged, map } from 'rxjs';
@@ -6,40 +7,75 @@ import { asEffectReset } from '../../lib/rx';
 import { DeepReadonly, DeepReadonlyArray, Nullable } from '../../lib/types';
 import { AnyTreeNode } from '../../models/citation-tree';
 import { useRxAppStore } from '../../store';
-import { setRoot } from '../../store/actions/filter';
-import { selectFullTree, selectTree } from '../../store/constant-lib';
-import { HoverableTreeNodeValue } from './hoverable-tree-node-value';
+import { selectIds } from '../../store/actions/select-ids';
+import { setRoot } from '../../store/actions/set-root';
+import { selectFilteredTree, selectRootId, selectSelectedIds } from '../../store/constant-lib';
+import { HoverableTreeNodeValue } from './HoverableTreeNodeValue';
 import './TreeView.scss';
 
 export function TreeView() {
   const { store, state$ } = useRxAppStore();
   const state = store.getState();
-  const [fullTree, setFullTree] = useState(selectFullTree(state));
-  const [treeRoot, setTreeRoot] = useState(selectTree(state));
+  const [filteredTree, setFilteredTree] = useState(selectFilteredTree(state));
+  const [selectedIds, setSelectedIds] = useState(selectSelectedIds(state));
+  const [rootId, setRootId] = useState(selectRootId(state));
   useEffect(
     () =>
       asEffectReset(
-        state$.pipe(map(selectFullTree), distinctUntilChanged()).subscribe((value) => {
-          setFullTree(value);
+        state$.pipe(map(selectFilteredTree), distinctUntilChanged()).subscribe((value) => {
+          setFilteredTree(value);
         })
       ),
     [state$]
   );
   useEffect(() =>
     asEffectReset(
-      state$.pipe(map(selectTree), distinctUntilChanged()).subscribe((value) => {
-        setTreeRoot(value);
+      state$.pipe(map(selectSelectedIds), distinctUntilChanged()).subscribe((value) => {
+        setSelectedIds(value);
       })
     )
   );
-  const data = useMemo(() => toDataNodes(fullTree), [fullTree]);
+  useEffect(() =>
+    asEffectReset(
+      state$.pipe(map(selectRootId), distinctUntilChanged()).subscribe((value) => {
+        setRootId(value);
+      })
+    )
+  );
+  const data = useMemo(() => toDataNodes(filteredTree), [filteredTree]);
 
   return (
     <Tree
+      checkable
+      onCheck={(keys, info) => {
+        return store.dispatch(
+          selectIds(
+            'checked' in keys
+              ? {
+                  fully: asStringIterator(keys.checked),
+                  half: asStringIterator(keys.halfChecked),
+                }
+              : {
+                  fully: asStringIterator(keys),
+                  half: asStringIterator(info.halfCheckedKeys ?? []),
+                }
+          )
+        );
+      }}
+      checkedKeys={{
+        checked: selectedIds.fully.slice(),
+        halfChecked: selectedIds.half.slice(),
+      }}
+      showLine={{ showLeafIcon: false }}
       className="TreeView"
-      selectedKeys={[treeRoot.id]}
+      selectedKeys={[rootId]}
       treeData={data}
-      onSelect={(keys) => store.dispatch(setRoot(keys[0].toString()))}
+      onSelect={(keys) => {
+        if (keys.length === 0) {
+          return;
+        }
+        store.dispatch(setRoot(keys[0].toString()));
+      }}
     />
   );
 }
@@ -70,18 +106,16 @@ function toDataNodes(tree: DeepReadonly<AnyTreeNode<any>>): DataNode[] {
   return nodes;
 }
 
-interface ReactTreeQueueEntry {
-  parent: Nullable<ReactTreeQueueEntry>;
-  children: ReadonlyArray<DataNode>;
-}
-
 function toDataNode(node: DeepReadonly<AnyTreeNode<any>>): DataNode {
   return {
-    checkable: false,
     disabled: false,
     disableCheckbox: false,
     key: node.id,
     title: <HoverableTreeNodeValue data={node} />,
     selectable: !!node.children,
   };
+}
+
+function asStringIterator(source: Iterator<any> | Iterable<any>) {
+  return iterate(source).map((v) => v.toString());
 }

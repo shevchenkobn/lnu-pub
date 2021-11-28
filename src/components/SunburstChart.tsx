@@ -17,12 +17,12 @@ import { useRxAppStore } from '../store';
 import { distinctUntilChanged, map } from 'rxjs';
 import * as ReactVega from 'react-vega';
 import type { Spec } from 'vega';
-import { setRoot } from '../store/actions/filter';
+import { setRoot } from '../store/actions/set-root';
 import { hoverNodeId } from '../store/actions/hover-node-id';
 import {
   getAssertedNode,
   RootState,
-  selectTree,
+  selectSelectedTree,
   selectHoveredNodeParentIds,
   selectHoveredNodeId,
 } from '../store/constant-lib';
@@ -169,18 +169,18 @@ export interface SunburstChartProps {
 export function SunburstChart({ width, height }: PropsWithChildren<SunburstChartProps>) {
   const { store, state$ } = useRxAppStore();
   const viewRef = useRef<Nullable<View>>(null);
-  const [data, setData] = useState<DeepReadonlyArray<FlatTreeNode<any>>>(mapTree(selectTree(store.getState())));
+  const [data, setData] = useState(mapTree(selectSelectedTree(store.getState())));
 
   useEffect(
     () =>
       asEffectReset(
-        state$.pipe(map(selectTree), distinctUntilChanged()).subscribe((value) => {
+        state$.pipe(map(selectSelectedTree), distinctUntilChanged()).subscribe((value) => {
           setData(mapTree(value));
         })
       ),
     [state$, data]
   );
-  // console.debug('render chart', tree, set.has(tree));
+  // console.info('render chart', tree, set.has(tree));
   // set.add(tree);
   useEffect(
     () =>
@@ -208,7 +208,7 @@ export function SunburstChart({ width, height }: PropsWithChildren<SunburstChart
         console.log('[chart] assign view', view);
 
         view.addSignalListener(nodeClickSignal, (_, datum: DeepReadonly<FlatTreeNode<any>>) => {
-          if (selectTree(store.getState()).id === datum.id) {
+          if (selectSelectedTree(store.getState())?.id === datum.id) {
             return;
           }
           store.dispatch(setRoot(datum.id));
@@ -224,7 +224,10 @@ export function SunburstChart({ width, height }: PropsWithChildren<SunburstChart
   );
 }
 
-function mapTree(tree: DeepReadonly<AnyTreeNode<any>>): FlatTreeNode<any>[] {
+function mapTree(tree: Nullable<DeepReadonly<AnyTreeNode<any>>>): FlatTreeNode<any>[] {
+  if (!tree) {
+    return [];
+  }
   const newValue = cloneShallow(tree);
   newValue.parent = null;
   newValue.children = tree.children ? (tree.children.slice() as AnyTreeNode<any>[]) : null;

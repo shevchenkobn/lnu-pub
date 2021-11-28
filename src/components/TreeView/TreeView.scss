@@ -3,6 +3,11 @@
 $node-border-width: 2px;
 
 .TreeView {
+  &.ant-tree .ant-tree-node-content-wrapper {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
   .app-antd-tree-node {
     border: $node-border-width solid $antd_tree-node_background;
     border-radius: 2px;
