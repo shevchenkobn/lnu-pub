@@ -3,11 +3,10 @@
  */
 import { Action, miniSerializeError, ThunkAction } from '@reduxjs/toolkit';
 import { DeepReadonly, Nullable } from '../lib/types';
-import { Citation } from '../models/citation';
+import { Citation, getDefaultYearRange } from '../models/citation';
 import {
   AnyTreeNode,
   createTreeRoot,
-  NonLeafTreeNodeType,
   SerializableTreeNode,
   SerializableTreeNodeMap,
   TreeNodeType,
@@ -27,6 +26,7 @@ export enum ActionType {
   LoadRaw = 'loadRaw',
   SetTreeRoot = 'setRoot',
   SelectIds = 'selectIds',
+  SetYearRange = 'setYearRange',
   HoverNode = 'hover',
 }
 
@@ -35,14 +35,20 @@ export type RootState = DeepReadonly<{
     raw: Citation[];
     fullTree: SerializableTreeNode<TreeNodeType.Root>;
     idMap: SerializableTreeNodeMap;
+
+    yearLimits: [number, number];
+    yearRange: [number, number];
     filteredTree: SerializableTreeNode<TreeNodeType.Root>;
-    selectedTree: Nullable<AnyTreeNode<any>>;
+
     rootId: string;
     treeParentIds: string[];
+
+    selectedTree: Nullable<AnyTreeNode<any>>;
     selectedIds: {
       fully: string[];
       half: string[];
     };
+
     hoveredNodeId: Nullable<string>;
     hoveredNodeParentIds: Nullable<string[]>;
   };
@@ -54,18 +60,32 @@ export function getInitialState(): RootState {
       raw: [],
       fullTree: createTreeRoot(),
       idMap: {},
+
+      yearLimits: getDefaultYearRange(),
+      yearRange: getDefaultYearRange(),
       filteredTree: createTreeRoot(),
-      selectedTree: createTreeRoot(),
+
       rootId: '',
       treeParentIds: [],
+
+      selectedTree: createTreeRoot(),
       selectedIds: {
         fully: [],
         half: [],
       },
+
       hoveredNodeId: null,
       hoveredNodeParentIds: null,
     },
   };
+}
+
+export function selectYearLimits(state: RootState): readonly [number, number] {
+  return state.data.yearLimits as any;
+}
+
+export function selectYearRange(state: RootState): readonly [number, number] {
+  return state.data.yearRange as any;
 }
 
 export function selectFilteredTree(state: RootState) {

@@ -1,3 +1,5 @@
+import { t } from '../lib/types';
+
 export interface Citation {
   id: string;
   name: string;
@@ -6,4 +8,8 @@ export interface Citation {
   department: string;
   faculty: string;
   university: string;
+}
+
+export function getDefaultYearRange() {
+  return t(0, new Date().getFullYear());
 }

@@ -1,11 +1,13 @@
 @import "App.module";
 
 .App {
-  height: $height;
   margin: 2rem;
 
-  .ant-col {
-    height: 100%;
-    overflow-y: auto;
+  .main {
+    height: $height;
+    .ant-col {
+      height: 100%;
+      overflow-y: auto;
+    }
   }
 }

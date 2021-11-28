@@ -45,7 +45,7 @@ export function HoverableTreeNodeValue({ data }: PropsWithChildren<HoverableTree
     [data.id, hoveredNode, state]
   );
 
-  const value = data.name;
+  const value = `${data.name} - ${data.value} publications`;
   return (
     <div
       onMouseEnter={() => store.dispatch(hoverNodeId(data.id))}
