@@ -33,7 +33,7 @@ export function buildReducers(builder: ActionReducerMapBuilder<RootState>) {
       state.data.raw = action.payload;
       state.data.idMap = {};
       state.data.fullTree = toSerializableCitationTree(state.data.raw, state.data.idMap as SerializableTreeNodeMap);
-      for (const node of forEachPostOrderTree(state.data.fullTree)) {
+      for (const node of traversePreOrder(state.data.fullTree)) {
         if (!node.children) {
           continue;
         }
