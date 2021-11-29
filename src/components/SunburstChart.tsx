@@ -11,7 +11,7 @@ import {
   toArray,
   toFlatNode,
   TreeNodeType,
-} from '../models/citation-tree';
+} from '../models/publication-tree';
 import { Point } from '../models/common';
 import { useRxAppStore } from '../store';
 import { distinctUntilChanged, map } from 'rxjs';
@@ -44,7 +44,7 @@ const Chart = ReactVega.createClassFromSpec({
   mode: 'vega',
   spec: {
     $schema: 'https://vega.github.io/schema/vega/v5.json',
-    description: 'A citation tree.',
+    description: 'A publication tree.',
     width: { signal: widthSignal },
     height: { signal: heightSignal },
     padding: 0,

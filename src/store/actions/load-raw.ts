@@ -1,5 +1,5 @@
 import { createAction } from '@reduxjs/toolkit';
-import { Citation } from '../../models/citation';
+import { Publications } from '../../models/publications';
 import { ActionType } from '../constant-lib';
 
 export type LoadRawAction = ReturnType<typeof loadRaw>;
@@ -1797,5 +1797,5 @@ export const loadRaw = createAction(ActionType.LoadRaw, () => ({
       faculty: 'Faculty of Arts and Humanities (FKH)',
       university: 'Linnaeus University (LNU)',
     },
-  ] as Citation[],
+  ] as Publications[],
 }));

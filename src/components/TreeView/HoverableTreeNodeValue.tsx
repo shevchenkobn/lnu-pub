@@ -3,7 +3,7 @@ import { distinctUntilChanged, map } from 'rxjs';
 import { whenT } from '../../lib/expressions';
 import { asEffectReset } from '../../lib/rx';
 import { DeepReadonly } from '../../lib/types';
-import { AnyTreeNode } from '../../models/citation-tree';
+import { AnyTreeNode } from '../../models/publication-tree';
 import { useRxAppStore } from '../../store';
 import { hoverNodeId } from '../../store/actions/hover-node-id';
 import { selectHoveredNodeId, selectHoveredNodeParentIds, selectTreeParentIds } from '../../store/constant-lib';

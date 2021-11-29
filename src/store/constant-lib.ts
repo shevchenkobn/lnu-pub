@@ -3,14 +3,14 @@
  */
 import { Action, miniSerializeError, ThunkAction } from '@reduxjs/toolkit';
 import { DeepReadonly, Nullable } from '../lib/types';
-import { Citation, getDefaultYearRange } from '../models/citation';
+import { Publications, getDefaultYearRange } from '../models/publications';
 import {
   AnyTreeNode,
   createTreeRoot,
   SerializableTreeNode,
   SerializableTreeNodeMap,
   TreeNodeType,
-} from '../models/citation-tree';
+} from '../models/publication-tree';
 import { createAppStore } from './index';
 
 export type AppStore = ReturnType<typeof createAppStore>;
@@ -32,7 +32,7 @@ export enum ActionType {
 
 export type RootState = DeepReadonly<{
   data: {
-    raw: Citation[];
+    raw: Publications[];
     fullTree: SerializableTreeNode<TreeNodeType.Root>;
     idMap: SerializableTreeNodeMap;
 

@@ -1,7 +1,7 @@
 import { GuardedMap } from '../lib/map';
 import { objectKeys } from '../lib/object';
 import { DeepReadonly, DeepReadonlyArray, Nullable } from '../lib/types';
-import { Citation, getDefaultYearRange } from './citation';
+import { Publications, getDefaultYearRange } from './publications';
 
 export enum TreeNodeType {
   Root = 'root',
@@ -34,7 +34,7 @@ interface TreeNodeCommon<T extends TreeNodeType> extends TreeNodeParentable {
 
 export interface AnyTreeNode<T extends TreeNodeType> extends TreeNodeCommon<T> {
   /**
-   * The amount of citations
+   * The amount of publications.
    */
   value: number;
   children: Nullable<AnyTreeNode<TreeNodeType>[]>;
@@ -42,11 +42,11 @@ export interface AnyTreeNode<T extends TreeNodeType> extends TreeNodeCommon<T> {
 
 export interface FlatTreeNode<T extends TreeNodeType> extends TreeNodeCommon<T> {
   /**
-   * The amount of citations.
+   * The amount of publications.
    */
   value?: number;
   /**
-   * The amount of citations in aggregations (to fool vega).
+   * The amount of publications in aggregations (to fool vega).
    */
   groupedValue?: number;
 }
@@ -79,45 +79,45 @@ type SerializableTreeNodes = {
 export type SerializableTreeNode<T extends TreeNodeType> = SerializableTreeNodes[T];
 
 interface Mappers {
-  extractId(value: Citation): string;
-  extractName(value: Citation): string;
+  extractId(value: Publications): string;
+  extractName(value: Publications): string;
 }
 
-export function toSerializableCitationTree(
-  citations: Iterable<DeepReadonly<Citation>>,
+export function toSerializablePublicationTree(
+  publications: Iterable<DeepReadonly<Publications>>,
   idMap: SerializableTreeNodeMap = {}
 ): SerializableTreeNode<TreeNodeType.Root> {
   const extractorRegex = /\((\w+)\)$/i;
   const idExtractors: Record<MiddleTreeNodeType | TreeNodeType.Person, Mappers> = {
     [TreeNodeType.University]: {
-      extractId(value: Citation): string {
+      extractId(value: Publications): string {
         return 'u' + (value.university.match(extractorRegex)?.[1] ?? value.university);
       },
-      extractName(value: Citation): string {
+      extractName(value: Publications): string {
         return value.university;
       },
     },
     [TreeNodeType.Faculty]: {
-      extractId(value: Citation): string {
+      extractId(value: Publications): string {
         return 'f' + (value.faculty.match(extractorRegex)?.[1] ?? value.faculty);
       },
-      extractName(value: Citation): string {
+      extractName(value: Publications): string {
         return value.faculty;
       },
     },
     [TreeNodeType.Department]: {
-      extractId(value: Citation): string {
+      extractId(value: Publications): string {
         return 'd' + (value.department.match(extractorRegex)?.[1] ?? value.department);
       },
-      extractName(value: Citation): string {
+      extractName(value: Publications): string {
         return value.department;
       },
     },
     [TreeNodeType.Person]: {
-      extractId(value: Citation): string {
+      extractId(value: Publications): string {
         return `p${value.id}_${value.year}`;
       },
-      extractName(value: Citation): string {
+      extractName(value: Publications): string {
         return `${value.name} (${value.year})`;
       },
     },
@@ -130,61 +130,61 @@ export function toSerializableCitationTree(
   root.years = [Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER];
   idMap[root.id] = root;
 
-  for (const citation of citations) {
-    const universityId = idExtractors[TreeNodeType.University].extractId(citation);
+  for (const publicationsEntry of publications) {
+    const universityId = idExtractors[TreeNodeType.University].extractId(publicationsEntry);
     let university: SerializableTreeNode<TreeNodeType.University>;
     if (idMap[universityId]) {
       university = idMap[universityId] as SerializableTreeNode<TreeNodeType.University>;
-      university.value += citation.pubs;
-      updateYears(university.years, citation.year);
+      university.value += publicationsEntry.pubs;
+      updateYears(university.years, publicationsEntry.year);
     } else {
       university = {
         parent: root.id,
         id: universityId,
         type: TreeNodeType.University,
-        name: idExtractors[TreeNodeType.University].extractName(citation),
-        years: [citation.year, citation.year],
-        value: citation.pubs,
+        name: idExtractors[TreeNodeType.University].extractName(publicationsEntry),
+        years: [publicationsEntry.year, publicationsEntry.year],
+        value: publicationsEntry.pubs,
         children: [],
       };
       idMap[university.id] = university;
       root.children.push(university);
     }
 
-    const facultyId = idExtractors[TreeNodeType.Faculty].extractId(citation);
+    const facultyId = idExtractors[TreeNodeType.Faculty].extractId(publicationsEntry);
     let faculty: SerializableTreeNode<TreeNodeType.Faculty>;
     if (idMap[facultyId]) {
       faculty = idMap[facultyId] as SerializableTreeNode<TreeNodeType.Faculty>;
-      faculty.value += citation.pubs;
-      updateYears(faculty.years, citation.year);
+      faculty.value += publicationsEntry.pubs;
+      updateYears(faculty.years, publicationsEntry.year);
     } else {
       faculty = {
         parent: university.id,
         id: facultyId,
         type: TreeNodeType.Faculty,
-        name: idExtractors[TreeNodeType.Faculty].extractName(citation),
-        years: [citation.year, citation.year],
-        value: citation.pubs,
+        name: idExtractors[TreeNodeType.Faculty].extractName(publicationsEntry),
+        years: [publicationsEntry.year, publicationsEntry.year],
+        value: publicationsEntry.pubs,
         children: [],
       };
       idMap[faculty.id] = faculty;
       university.children.push(faculty);
     }
 
-    const departmentId = idExtractors[TreeNodeType.Department].extractId(citation);
+    const departmentId = idExtractors[TreeNodeType.Department].extractId(publicationsEntry);
     let department: SerializableTreeNode<TreeNodeType.Department>;
     if (idMap[departmentId]) {
       department = idMap[departmentId] as SerializableTreeNode<TreeNodeType.Department>;
-      department.value += citation.pubs;
-      updateYears(department.years, citation.year);
+      department.value += publicationsEntry.pubs;
+      updateYears(department.years, publicationsEntry.year);
     } else {
       department = {
         parent: faculty.id,
         id: departmentId,
         type: TreeNodeType.Department,
-        name: idExtractors[TreeNodeType.Department].extractName(citation),
-        years: [citation.year, citation.year],
-        value: citation.pubs,
+        name: idExtractors[TreeNodeType.Department].extractName(publicationsEntry),
+        years: [publicationsEntry.year, publicationsEntry.year],
+        value: publicationsEntry.pubs,
         children: [],
       };
       idMap[department.id] = department;
@@ -192,15 +192,15 @@ export function toSerializableCitationTree(
     }
     const node: SerializableTreeNode<TreeNodeType.Person> = {
       parent: department.id,
-      id: idExtractors[TreeNodeType.Person].extractId(citation),
+      id: idExtractors[TreeNodeType.Person].extractId(publicationsEntry),
       type: TreeNodeType.Person,
-      name: idExtractors[TreeNodeType.Person].extractName(citation),
-      years: [citation.year, citation.year],
-      value: citation.pubs,
+      name: idExtractors[TreeNodeType.Person].extractName(publicationsEntry),
+      years: [publicationsEntry.year, publicationsEntry.year],
+      value: publicationsEntry.pubs,
       children: null,
     };
     root.value += node.value;
-    updateYears(root.years, citation.year);
+    updateYears(root.years, publicationsEntry.year);
     department.children.push(node);
     idMap[node.id] = node;
   }
@@ -293,7 +293,7 @@ interface QueueEntry {
   node: DeepReadonly<AnyTreeNode<any>>;
 }
 
-export function* forEachPostOrderTree<T extends DeepReadonly<AnyTreeNode<any>>>(tree: T): Generator<T, void, unknown> {
+export function* traversePostOrder<T extends DeepReadonly<AnyTreeNode<any>>>(tree: T): Generator<T, void, unknown> {
   // const stack: DeepReadonly<AnyTreeNode<any>>[] = [tree];
   // const visited = new Set<string>();
   // while () {
@@ -310,7 +310,7 @@ export function* forEachPostOrderTree<T extends DeepReadonly<AnyTreeNode<any>>>(
   // }
   if (tree.children) {
     for (const node of tree.children) {
-      for (const child of forEachPostOrderTree(node)) {
+      for (const child of traversePostOrder(node)) {
         yield child as T;
       }
     }

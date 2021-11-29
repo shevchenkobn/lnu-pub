@@ -18,7 +18,7 @@ function App() {
   return (
     <div className="App">
       <Space className={'w-100'} direction={'vertical'} align={'center'}>
-        <Title>Citations Analysis Tool.</Title>
+        <Title>Publication Analysis Tool.</Title>
       </Space>
       <div className={'mb-1'}>
         <Filters />

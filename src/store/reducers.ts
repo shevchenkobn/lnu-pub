@@ -4,20 +4,20 @@ import { iterate } from 'iterare';
 import { cloneDeep } from 'lodash-es';
 import { objectKeys } from '../lib/object';
 import { DeepReadonly, DeepReadonlyArray, t } from '../lib/types';
-import { Citation, getDefaultYearRange } from '../models/citation';
+import { Publications, getDefaultYearRange } from '../models/publications';
 import {
   AnyTreeNode,
-  forEachPostOrderTree,
+  traversePostOrder,
   getFilteredTree,
   SerializableTreeNode,
   SerializableTreeNodeMap,
-  toSerializableCitationTree,
+  toSerializablePublicationTree,
   traverseParents,
   traversePreOrder,
   TreeNodeParentable,
   TreeNodeType,
   updateYears,
-} from '../models/citation-tree';
+} from '../models/publication-tree';
 import { selectIds, SelectIdsAction } from './actions/select-ids';
 import { setRoot, SetRootIdAction } from './actions/set-root';
 import { hoverNodeId, HoverNodeIdAction } from './actions/hover-node-id';
@@ -32,7 +32,7 @@ export function buildReducers(builder: ActionReducerMapBuilder<RootState>) {
     .addCase(loadRaw.type, (state, action: LoadRawAction) => {
       state.data.raw = action.payload;
       state.data.idMap = {};
-      state.data.fullTree = toSerializableCitationTree(state.data.raw, state.data.idMap as SerializableTreeNodeMap);
+      state.data.fullTree = toSerializablePublicationTree(state.data.raw, state.data.idMap as SerializableTreeNodeMap);
       for (const node of traversePreOrder(state.data.fullTree)) {
         if (!node.children) {
           continue;
@@ -100,10 +100,10 @@ export function buildReducers(builder: ActionReducerMapBuilder<RootState>) {
     });
 }
 
-function getYearRange(tree: DeepReadonlyArray<Citation>) {
+function getYearRange(tree: DeepReadonlyArray<Publications>) {
   const range = t(Number.MAX_VALUE, Number.MIN_VALUE);
-  for (const citation of tree) {
-    updateYears(range, citation.year);
+  for (const publications of tree) {
+    updateYears(range, publications.year);
   }
   return range;
 }
@@ -137,7 +137,7 @@ function getNodeParentPath(node: DeepReadonly<AnyTreeNode<any>>, idMap: DeepRead
 }
 
 function recalculateTreeValues(tree: AnyTreeNode<any>) {
-  for (const node of forEachPostOrderTree(tree)) {
+  for (const node of traversePostOrder(tree)) {
     if (!node.children) {
       continue;
     }

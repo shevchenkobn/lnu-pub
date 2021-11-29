@@ -1,6 +1,6 @@
 import { t } from '../lib/types';
 
-export interface Citation {
+export interface Publications {
   id: string;
   name: string;
   year: number;

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { distinctUntilChanged, map } from 'rxjs';
 import { asEffectReset } from '../../lib/rx';
 import { DeepReadonly, DeepReadonlyArray, Nullable } from '../../lib/types';
-import { AnyTreeNode } from '../../models/citation-tree';
+import { AnyTreeNode } from '../../models/publication-tree';
 import { useRxAppStore } from '../../store';
 import { selectIds } from '../../store/actions/select-ids';
 import { setRoot } from '../../store/actions/set-root';
